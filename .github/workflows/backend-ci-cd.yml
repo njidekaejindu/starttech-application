@@ -1,83 +1,48 @@
-# StartTech backend CI/CD
-
 name: Backend CI/CD
 
 on:
   push:
- HEAD
     branches: ["master"]
-  pull_request:
-
-    branches: [ master ]
     paths:
-      - 'backend/**'
+      - "backend/**"
+      - ".github/workflows/backend-ci-cd.yml"
   pull_request:
-    branches: [ master ]
+    branches: ["master"]
     paths:
-      - 'backend/**'
- 1b498b0 (Add real backend CI/CD workflow)
+      - "backend/**"
+      - ".github/workflows/backend-ci-cd.yml"
 
 permissions:
   id-token: write
   contents: read
 
-jobs:
- HEAD
-  build-and-push-ecr:
-    runs-on: ubuntu-latest
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: starttech-backend
 
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-
-  build-and-push:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials via OIDC
- 1b498b0 (Add real backend CI/CD workflow)
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
- HEAD
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        working-directory: backend
-        run: |
-          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-          REGION=${{ secrets.AWS_REGION }}
-          REPO="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/starttech-backend"
-
-          docker build -t starttech-backend:${GITHUB_SHA} .
-          docker tag starttech-backend:${GITHUB_SHA} $REPO:${GITHUB_SHA}
-          docker tag starttech-backend:${GITHUB_SHA} $REPO:dev
-
-          docker push $REPO:${GITHUB_SHA}
-          docker push $REPO:dev
-
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image
+      - name: Build, tag, and push image
         working-directory: backend
         run: |
-          docker build -t starttech-backend:latest .
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          IMAGE="$REGISTRY/${{ env.ECR_REPOSITORY }}"
 
-      - name: Tag image
-        run: |
-          docker tag starttech-backend:latest ${{ steps.login-ecr.outputs.registry }}/starttech-backend:latest
-
-      - name: Push to ECR
-        run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/starttech-backend:latest
-
- 1b498b0 (Add real backend CI/CD workflow)
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:dev" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:dev"
