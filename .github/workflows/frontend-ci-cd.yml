@@ -2,8 +2,7 @@ name: Frontend CI/CD
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-ci-cd.yml"
@@ -32,31 +31,6 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Check secrets are present (safe)
-        shell: bash
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "AWS_ACCESS_KEY_ID is EMPTY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
-            echo "AWS_SECRET_ACCESS_KEY is EMPTY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.AWS_REGION }}" ]; then
-            echo "AWS_REGION is EMPTY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.S3_BUCKET_NAME }}" ]; then
-            echo "S3_BUCKET_NAME is EMPTY"
-            exit 1
-          fi
-          if [ -z "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
-            echo "CLOUDFRONT_DISTRIBUTION_ID is EMPTY"
-            exit 1
-          fi
-          echo "Secrets are present ✅"
-
       - name: Configure AWS credentials (static keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -65,13 +39,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to S3
-        shell: bash
-        run: |
-          aws s3 sync frontend/build "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
+        run: aws s3 sync frontend/build "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
 
       - name: Invalidate CloudFront
-        shell: bash
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/*"
+        run: aws cloudfront create-invalidation --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/*"
