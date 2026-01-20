@@ -33,7 +33,7 @@ jobs:
           cat frontend/package-lock.json | head
 
       - name: Install dependencies
-        working-directory: frontend
+        working-directory: ./frontend
         run: npm ci
 
       - name: Build
